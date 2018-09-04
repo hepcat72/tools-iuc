@@ -83,8 +83,7 @@
             -configOption '${snpDb.snpeff_db.metadata.genome_version}'.codonTable='${snpDb.codon_table}'
             '${snpDb.snpeff_db.metadata.genome_version}'
         #else
-          -download
-          '$snpDb.genome_version'
+          $ondemand '$snpDb.genome_version'
         #end if
         '$input' > '$snpeff_output'
         #if $statsFile:
@@ -129,15 +128,14 @@
         </conditional>
         <param name="csvStats" type="boolean" truevalue="-csvStats" falsevalue="" checked="false" label="Create CSV report, useful for downstream analysis (-csvStats)" />
         <conditional name="snpDb">
-            <param name="genomeSrc" type="select" label="Genome source">
+            <param name="genomeSrc" type="select" label="SnpEff database source">
                 <!-- These options are referenced in the help section of SnpEff download tool. If you change them, change help of SnpEff download as well -->
-                <option value="cached">Locally installed snpEff database</option>
-                <option value="history">Downloaded snpEff database in your history</option>
-                <option value="named">Download on demand</option>
-                <option value="custom">Custom snpEff database in your history</option>
+                <option value="cached">Galaxy-maintained</option>
+                <option value="named">SnpEff-maintained</option>
+                <option value="history">History</option>
             </param>
             <when value="cached">
-                <param name="genomeVersion" type="select" label="Genome">
+                <param name="genomeVersion" type="select" label="Genome / Genome Version" help="A list of valid genomes cab be obtained using column 1 of the output of the 'SnpEff databases' tool">
                     <!--GENOME    DESCRIPTION-->
                     <options from_data_table="snpeffv_genomedb">
                             <filter type="static_value" name="snpeff_version" value="@snpeff_version@" column="1"/>
@@ -153,6 +151,13 @@
                     </param>
                 </section>
             </when>
+            <when value="named">
+                <param name="genome_version" type="text" value="" label="Snpff Genome Version Name" help="A list of valid genomes cab be obtained using column 1 of the output of the 'SnpEff databases' tool,  (e.g. GRCh38.76)">
+                    <help>@snpeff_database_url@</help>
+                    <validator type="regex" message="A genome version name is required">\S+</validator>
+                </param>
+                <param name="ondemand" type="boolean" truevalue="-download" falsevalue="" checked="true" label="Download &amp; install if not present" argument="-download" />
+            </when>
             <when value="history">
                 <param name="snpeff_db" type="data" format="snpeffdb" label="@snpeff_version@ Genome Data">
                     <options options_filter_attribute="metadata.snpeff_version" >
@@ -162,53 +167,47 @@
                 </param>
                 <section name="reg_section" expanded="false" title="Regulation options">
                     <!-- From metadata -->
-                    <param name="regulation" type="select" display="checkboxes" multiple="true" label="Non-coding and regulatory annotation" help="These are available for only a few genomes">
+                    <param name="regulation" type="select" display="checkboxes" multiple="true" label="Non-coding and regulatory annotation" help="These are available for only a few genomes.  Note, the 'SnpEff build' galaxy tool doesn't currently support regulation options, but you may upload your own custom database with reglation annotations.">
                         <options>
                             <filter type="data_meta" ref="snpeff_db" key="regulation" />
                         </options>
                     </param>
                 </section>
-            </when>
-            <when value="named">
-                <param name="genome_version" type="text" value="" label="Snpff Genome Version Name (e.g. GRCh38.76)">
-                    <help>@snpeff_database_url@</help>
-                    <validator type="regex" message="A genome version name is required">\S+</validator>
-                </param>
-            </when>
-            <when value="custom">
-                <param name="snpeff_db" type="data" format="snpeffdb" label="@snpeff_version@ Genome Data">
-                    <options options_filter_attribute="metadata.snpeff_version" >
-                        <filter type="add_value" value="@snpeff_version@" />
-                    </options>
-                    <validator type="expression" message="This version of SnpEff will only work with @snpeff_version@ genome databases">value is not None and value.metadata.snpeff_version == "@snpeff_version@"</validator>
-                </param>
-                <param name="codon_table" type="select" label="Select genetic code for this sequence" help="If this sequence uses non-standard genetic code, select one from these options">
-                    <option selected="true" value="Standard">Standard</option>
-                    <option value="Vertebrate_Mitochondrial">Vertebrate_Mitochondrial</option>
-                    <option value="Yeast_Mitochondrial">Yeast_Mitochondrial</option>
-                    <option value="Mold_Mitochondrial">Mold_Mitochondrial</option>
-                    <option value="Protozoan_Mitochondrial">Protozoan_Mitochondrial</option>
-                    <option value="Coelenterate">Coelenterate</option>
-                    <option value="Mitochondrial">Mitochondrial</option>
-                    <option value="Mycoplasma">Mycoplasma</option>
-                    <option value="Spiroplasma">Spiroplasma</option>
-                    <option value="Invertebrate_Mitochondrial">Invertebrate_Mitochondrial</option>
-                    <option value="Ciliate_Nuclear">Ciliate_Nuclear</option>
-                    <option value="Dasycladacean_Nuclear">Dasycladacean_Nuclear</option>
-                    <option value="Hexamita_Nuclear">Hexamita_Nuclear</option>
-                    <option value="Echinoderm_Mitochondrial">Echinoderm_Mitochondrial</option>
-                    <option value="Flatworm_Mitochondrial">Flatworm_Mitochondrial</option>
-                    <option value="Euplotid_Nuclear">Euplotid_Nuclear</option>
-                    <option value="Bacterial_and_Plant_Plastid">Bacterial_and_Plant_Plastid</option>
-                    <option value="Alternative_Yeast_Nuclear">Alternative_Yeast_Nuclear</option>
-                    <option value="Ascidian_Mitochondrial">Ascidian_Mitochondrial</option>
-                    <option value="Alternative_Flatworm_Mitochondrial">Alternative_Flatworm_Mitochondrial</option>
-                    <option value="Blepharisma_Macronuclear">Blepharisma_Macronuclear</option>
-                    <option value="Chlorophycean_Mitochondrial">Chlorophycean_Mitochondrial</option>
-                    <option value="Trematode_Mitochondrial">Trematode_Mitochondrial</option>
-                    <option value="Scenedesmus_obliquus_Mitochondrial">Scenedesmus_obliquus_Mitochondrial</option>
-                    <option value="Thraustochytrium_Mitochondrial">Thraustochytrium_Mitochondrial</option>
-            </param>
+                <conditional name="custom">
+                    <param name="custom_opts" type="select" label="Custom-built SnpEff Database Options" help="Use this when you've created a database using 'snpeff build'.">
+                        <option value="not_custom" selected="True">Not custom</option>
+                        <option value="is_custom">Custom</option>
+                    </param>
+                    <when value="is_custom">
+                        <param name="codon_table" type="select" label="Select genetic code for this sequence" help="If this sequence uses non-standard genetic code, select one from these options">
+                            <option value="Standard" selected="true"/>
+                            <option value="Vertebrate_Mitochondrial"/>
+                            <option value="Yeast_Mitochondrial"/>
+                            <option value="Mold_Mitochondrial"/>
+                            <option value="Protozoan_Mitochondrial"/>
+                            <option value="Coelenterate"/>
+                            <option value="Mitochondrial"/>
+                            <option value="Mycoplasma"/>
+                            <option value="Spiroplasma"/>
+                            <option value="Invertebrate_Mitochondrial"/>
+                            <option value="Ciliate_Nuclear"/>
+                            <option value="Dasycladacean_Nuclear"/>
+                            <option value="Hexamita_Nuclear"/>
+                            <option value="Echinoderm_Mitochondrial"/>
+                            <option value="Flatworm_Mitochondrial"/>
+                            <option value="Euplotid_Nuclear"/>
+                            <option value="Bacterial_and_Plant_Plastid"/>
+                            <option value="Alternative_Yeast_Nuclear"/>
+                            <option value="Ascidian_Mitochondrial"/>
+                            <option value="Alternative_Flatworm_Mitochondrial"/>
+                            <option value="Blepharisma_Macronuclear"/>
+                            <option value="Chlorophycean_Mitochondrial"/>
+                            <option value="Trematode_Mitochondrial"/>
+                            <option value="Scenedesmus_obliquus_Mitochondrial"/>
+                            <option value="Thraustochytrium_Mitochondrial"/>
+                        </param>
+                    </when>
+                </conditional>
             </when>
         </conditional>
 
