@@ -1,0 +1,98 @@
+<tool id="snpEff_get_chr_names" name="SnpEff chromosome-info:" version="@wrapper_version@.galaxy1">
+    <description> list chromosome names/lengths</description>
+    <macros>
+        <import>snpEff_macros.xml</import>
+    </macros>
+    <requirements>
+        <expand macro="requirement" />
+    </requirements>
+    <expand macro="stdio" />
+    <expand macro="version_command" />
+    <command><![CDATA[
+      snpEff dump
+        #if $snpDb.genomeSrc == 'history':
+            -dataDir '${snpDb.snpeff_db.extra_files_path}'
+        #elif $snpDb.genomeSrc == 'custom':
+            -dataDir '${snpDb.snpeff_db.extra_files_path}'
+            -configOption '${snpDb.snpeff_db.metadata.genome_version}'.genome='${snpDb.snpeff_db.metadata.genome_version}'
+            -configOption '${snpDb.snpeff_db.metadata.genome_version}'.codonTable='${snpDb.codon_table}'
+        #else:
+            -download
+        #end if
+        '$genomeVersion'
+        | grep -A -1 "# Chromosomes" | grep "#" | grep -E "[0-9]" | awk 'BEGIN {err=1;} {c=$0;sub(/^[^a-zA-Z0-9_]+/, "", c) && err=0; sub(/[^a-zA-Z0-9_]+/, "\t", c) && err=0; sub(/[^0-9]*$/, "", c) && err=0; print c } END {exit err}' > '$chr_names'
+    ]]></command>
+    <inputs>
+        <param name="genomeVersion" type="text" label="SnpEff Genome/Version">
+            <help>The list of available databases can be obtained with 'SnpEff databases' tool. If the database name is not found, locate a database here and download it in your history.</help>
+            <validator type="regex" message="A snpeff database genome name/version is required">\S+</validator>
+        </param>
+        <conditional name="snpDb">
+            <param name="genomeSrc" type="select" label="SnpEff Database">
+                <option value="cached">Galaxy-maintained SnpEff database</option>
+                <option value="history">Manually downloaded SnpEff database in your history</option>
+                <option value="custom">Custom SnpEff database in your history</option>
+            </param>
+            <when value="history">
+                <param name="snpeff_db" type="data" format="snpeffdb" label="SnpEff Database File" help="SnpEff databases can be downloaded from @snpeff_database_url@ and typically end in '.bin' when unzipped."/>
+            </when>
+            <when value="custom">
+                <param name="snpeff_db" type="data" format="snpeffdb" label="SnpEff Database File"/>
+            </when>
+        </conditional>
+    </inputs>
+    <outputs>
+        <data format="tabular" name="chr_names" label="Chromosome names and sizes"/>
+    </outputs>
+    <tests>
+        <test>
+            <param name="genomeSrc" value="cached"/>
+            <param name="genomeVersion" value="Bacillus_subtilis_subsp_subtilis_str_168"/>
+            <output name="chr_names">
+                <assert_contents>
+                    <has_text text="Chromosome" />
+                    <has_text text="4215606" />
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_failure="True">
+            <param name="genomeSrc" value="cached"/>
+            <param name="genomeVersion" value="should_not_match"/>
+        </test>
+        <test>
+            <param name="genomeSrc" value="history"/>
+            <param name="genomeVersion" value="Bacillus_subtilis_subsp_subtilis_str_168"/>
+            <param name="snpeff_db" value="./"/>
+            <output name="chr_names">
+                <assert_contents>
+                    <has_text text="Chromosome" />
+                    <has_text text="4215606" />
+                </assert_contents>
+            </output>
+        </test>
+    </tests>
+    <help><![CDATA[
+
+**What it does**
+
+Given a genome name/version, this tool outputs a tab-delimited file of chromosome names and their lengths, as they are in the selected SnpEff deatabase.  This can be used to validate and rename chromosome names in VCF files in order to annotate its records.
+
+Note, be sure to check the chromosome lengths match your reference or the annotations will be invalid.
+
+-------
+
+.. class:: infomark
+
+**The usage scenario**
+
+Suppose you want to use snpEff to annotate a VCF file that was generated using an mouse reference with a different chromosome naming convention than in the snpEff database. To do this you can:
+
+    #. Use `SnpEff databases` to find the precise database name for mouse data (e.g. "mm10").
+    #. List the chromosome names using this tool by typing *mm10* into **SnpEff Genome/Version...** text box and select "Galaxy-maintained snpEff database" as the **SnpEff database source** (valid genomes will be downloaded from @snpeff_database_url@ if not currently installed).
+    #. Check that the chromosomes in the SnpEff database are the same as the reference you used (e.g. as a cursory check, ensure the chromosome lengths reported from the SnpEff database match those of your reference).
+    #. Edit your vcf file to replace the chromosome names with the ones the SnpEff database uses.
+    #. Use **SnpEff eff** and supply the edited VCF file.
+
+    ]]></help>
+    <expand macro="citations" />
+</tool>
